@@ -31,9 +31,9 @@ export const minutesAtBar = (bar: number, gear: number): number => {
 	return hi;
 };
 
-/** Each play of the queue in order, its repeats spelled out; the head only has the repeats it has left. */
-export const expand = (queue: readonly QueuedMap[]): QueuedMap[] =>
-	queue.flatMap((map, i) => Array<QueuedMap>(Math.max(1, map.repeat - (i === 0 ? map.played : 0))).fill(map));
+/** Each play of the queue in order, its repeats spelled out; with `resuming`, the head only has the repeats it has left. */
+export const expand = (queue: readonly QueuedMap[], resuming = false): QueuedMap[] =>
+	queue.flatMap((map, i) => Array<QueuedMap>(Math.max(1, map.repeat - (resuming && i === 0 ? map.played : 0))).fill(map));
 
 /** Step `sessionSec` through the queue, looping, asking `play` what each play does at its fatigue. */
 export const forecast = async (
@@ -47,18 +47,23 @@ export const forecast = async (
 		cancelled?: () => boolean;
 	},
 ): Promise<Outlook> => {
-	const order = expand(queue);
+	// a run under way only finishes once: every later loop plays it whole
+	const first = expand(queue, true);
+	const loop = expand(queue);
 	const out: Outlook = {
 		samples: [{ at: 0, minutes: startMinutes, bar: warmupBar(startMinutes, gear) }],
 		plays: 0,
 		loopSec: 0,
 		loopDrift: 0,
 	};
-	if (!order.length) return out;
+	if (!first.length) return out;
 	let fatigue: Fatigue = { at: 0, minutes: startMinutes };
 	let t = 0;
+	/** Where the loop that is measured starts: the first whole one. */
+	let loopFrom = first.length === loop.length ? { plays: 0, t: 0, minutes: startMinutes } : undefined;
 	for (let i = 0; t < sessionSec && !cancelled(); i++) {
-		const at = await play(order[i % order.length]!, restedFatigue(fatigue, t * 1000));
+		const map = i < first.length ? first[i]! : loop[(i - first.length) % loop.length]!;
+		const at = await play(map, restedFatigue(fatigue, t * 1000));
 		t += at.durationSec;
 		fatigue = afterPlay(fatigue, at.lengthMin, at.strained, t * 1000);
 		const bar = warmupBar(fatigue.minutes, gear);
@@ -66,9 +71,11 @@ export const forecast = async (
 		out.plays++;
 		if (out.leavesAt === undefined && (bar < BAR_ZONES[0] || bar > BAR_ZONES[1])) out.leavesAt = t;
 		t += delaySec;
-		if (out.plays === order.length) {
-			out.loopSec = t;
-			out.loopDrift = restedFatigue(fatigue, t * 1000) - startMinutes;
+		if (!loopFrom && out.plays === first.length) {
+			loopFrom = { plays: out.plays, t, minutes: restedFatigue(fatigue, t * 1000) };
+		} else if (loopFrom && out.plays === loopFrom.plays + loop.length) {
+			out.loopSec = t - loopFrom.t;
+			out.loopDrift = restedFatigue(fatigue, t * 1000) - loopFrom.minutes;
 		}
 	}
 	return out;

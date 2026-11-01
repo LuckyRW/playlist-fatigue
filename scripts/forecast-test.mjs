@@ -25,7 +25,8 @@ const check = (name, ok, extra = '') => { ok ? pass++ : (fail++, console.log('  
 const map = (id, repeat = 1, played = 0) => ({ beatmapId: id, rate: 1, mods: [], repeat, played });
 const base = { startMinutes: 100, gear: 0, delaySec: 30, sessionSec: 3600 };
 
-check('repeats are spelled out, the head less what it played', m.expand([map(1, 3, 1), map(2, 2)]).map(p => p.beatmapId).join() === '1,1,2,2');
+check('repeats are spelled out, the head less what it played', m.expand([map(1, 3, 1), map(2, 2)], true).map(p => p.beatmapId).join() === '1,1,2,2');
+check('a whole loop plays every repeat', m.expand([map(1, 3, 1), map(2, 2)]).map(p => p.beatmapId).join() === '1,1,1,2,2');
 
 for (const bar of [0.2, 0.5, 0.7, 0.9]) {
 	check(`the bar reads back to its minutes (${bar})`, Math.abs(m.warmupBar(m.minutesAtBar(bar, 0), 0) - bar) < 1e-3);
@@ -37,6 +38,11 @@ check('fully strained plays tire', hard.samples.at(-1).minutes > 100, hard.sampl
 check('it loops the queue', asked.slice(0, 4).join() === '1,2,1,2');
 check('a loop is its plays and gaps', hard.loopSec === 300, hard.loopSec);
 check('a loop drifts up', hard.loopDrift > 0, hard.loopDrift);
+
+const order = [];
+const resumed = await m.forecast([map(1, 3, 1), map(2)], { ...base, sessionSec: 3600, play: async one => { order.push(one.beatmapId); return { durationSec: 70, lengthMin: 1, strained: 1 }; } });
+check('a run under way finishes, then loops whole', order.slice(0, 7).join() === '1,1,2,1,1,1,2', order.join());
+check('the loop measured is a whole one', resumed.loopSec === 400, resumed.loopSec);
 
 const easy = await m.forecast([map(1)], { ...base, play: async () => ({ durationSec: 120, lengthMin: 2, strained: 0 }) });
 check('plays without strain rest', easy.loopDrift < 0 && easy.samples.at(-1).minutes < 100, easy.loopDrift);
