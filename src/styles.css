@@ -1,0 +1,17 @@
+.pf-panel {
+	position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+	width: min(800px, calc(100vw - 32px)); padding: 16px; border-radius: 10px;
+	background: #16131a; color: #e8e4ee; font: 14px system-ui, sans-serif;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, .5); pointer-events: auto;
+}
+.pf-panel[hidden] { display: none; }
+.pf-head, .pf-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pf-head { justify-content: space-between; margin-bottom: 12px; }
+.pf-head h2 { margin: 0; font-size: 16px; }
+.pf-panel input { width: 80px; padding: 4px 6px; border: 1px solid #3a3442; border-radius: 6px; background: #0f0d11; color: inherit; }
+.pf-panel button { padding: 6px 12px; border: 0; border-radius: 6px; background: #6c47ff; color: #fff; cursor: pointer; }
+.pf-graph { display: block; width: 100%; margin-top: 12px; background: #0f0d11; border-radius: 6px; }
+.pf-peak { fill: rgba(108, 71, 255, .22); }
+.pf-line { fill: none; stroke: #b9a6ff; stroke-width: 2; }
+.pf-hint { color: #9a93a6; font-size: 12px; }
+.pf-error { color: #ff8080; }
