@@ -5,7 +5,7 @@
 
 import type { Mod } from '@oss-idle/shared/mods';
 
-export type QueuedMap = { beatmapId: number; rate: number; mods: Mod[]; repeat: number; played: number };
+export type QueuedMap = { beatmapId: number; rate: number; mods: Mod[]; repeat: number; played: number; lengthSec: number };
 export type Queue = { label: string; maps: QueuedMap[] };
 
 type Fiber = { return?: Fiber | null; memoizedProps?: Record<string, unknown>; memoizedState?: unknown };
@@ -30,7 +30,7 @@ const hooksOf = (fiber: Fiber): unknown[] => {
 
 type GameQueue = {
 	label?: string;
-	entries: { repeat?: number; played?: number; beatmap: { metadata: { id: number }; lockedRate?: number; lockedMods?: Mod[] } }[];
+	entries: { repeat?: number; played?: number; beatmap: { metadata: { id: number; total_length: number }; lockedRate?: number; lockedMods?: Mod[] } }[];
 };
 const isQueue = (value: unknown): value is GameQueue =>
 	!!value && typeof value === 'object' && Array.isArray((value as GameQueue).entries);
@@ -39,8 +39,9 @@ const isQueue = (value: unknown): value is GameQueue =>
 export const readQueue = (): Queue | undefined => {
 	for (let fiber = fiberOf(document.querySelector('.dock__source')); fiber; fiber = fiber.return ?? undefined) {
 		for (const state of hooksOf(fiber)) {
-			const found = [state, Array.isArray(state) ? state[0] : undefined].find(isQueue);
-			if (found) {
+			// the game's `useSynced` keeps its value as { current, previous }
+			const found = (state as { current?: unknown } | null | undefined)?.current;
+			if (isQueue(found)) {
 				return {
 					label: found.label ?? '',
 					maps: found.entries.map(({ beatmap, repeat, played }) => ({
@@ -49,6 +50,8 @@ export const readQueue = (): Queue | undefined => {
 						mods: beatmap.lockedMods ?? [],
 						repeat: repeat ?? 1,
 						played: played ?? 0,
+						// the game's metadata keeps it in ms
+						lengthSec: beatmap.metadata.total_length / 1000,
 					})),
 				};
 			}

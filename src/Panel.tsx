@@ -80,20 +80,14 @@ export default function Panel({ open, onClose, api }: { open: boolean; onClose: 
 				: bar !== undefined
 					? { minutes: minutesAtBar(bar, gear), from: 'the running play' }
 					: undefined;
-			if (!startAt) throw new Error('Your fatigue can only be read during a play: run this mid-play, or type your fatigue minutes.');
+			if (!startAt) throw new Error('Your fatigue can only be read on the play screen: open the running play and scan there, or type your fatigue minutes.');
 			setStart(startAt);
 
 			const playCounts = await playCountsSince(num(row.id), num(row.memoryResetAt));
-			const lengths = new Map<number, number>();
 			const asks = new Map<string, Promise<Played>>();
 			let calls = 0;
 			let nextCall = 0;
 			const ask = async (map: QueuedMap, minutes: number): Promise<Played> => {
-				let lengthSec = lengths.get(map.beatmapId);
-				if (lengthSec === undefined) {
-					lengthSec = (await api.beatmap(map.beatmapId)).total_length;
-					lengths.set(map.beatmapId, lengthSec);
-				}
 				const wait = Math.max(0, nextCall - Date.now());
 				nextCall = Date.now() + wait + CALL_SPACING_MS;
 				if (wait) await sleep(wait);
@@ -107,7 +101,7 @@ export default function Panel({ open, onClose, api }: { open: boolean; onClose: 
 					skills: skillsOf(row),
 				});
 				setProgress(++calls);
-				const fullSec = lengthSec / map.rate;
+				const fullSec = map.lengthSec / map.rate;
 				return {
 					// a failed play ends early, but tires the character for the map's full length
 					durationSec: LEAD_IN_MS / 1000 + (answer.passed ? fullSec : answer.fail_seconds ?? fullSec),
@@ -146,7 +140,7 @@ export default function Panel({ open, onClose, api }: { open: boolean; onClose: 
 			</div>
 			<div className="pf-controls">
 				<label>Hours <input type="number" min={1} max={48} value={hours} onChange={e => setHours(Math.min(48, Math.max(1, Number(e.target.value) || 1)))} /></label>
-				<label title="Empty: read from the running play">Start fatigue (min) <input value={typed} placeholder="from play" onChange={e => setTyped(e.target.value)} /></label>
+				<label title="Empty: read from the play screen">Start fatigue (min) <input value={typed} placeholder="from play screen" onChange={e => setTyped(e.target.value)} /></label>
 				{progress === undefined
 					? <button onClick={scan}>Scan</button>
 					: <button onClick={() => { stop.current = true; }}>Stop ({progress} sims)</button>}

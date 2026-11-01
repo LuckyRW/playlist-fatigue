@@ -7,5 +7,5 @@ your warm-up bar and fatigue.
 The game does not hand add-ons the queue or your fatigue:
 
 - The queue is read from the game's dock, so a game update could break it.
-- Your fatigue is read from the running play's warm-up bar. Off the play screen,
+- Your fatigue is read from the warm-up bar on the play screen. Anywhere else,
   or to try another start, type the fatigue minutes in yourself.

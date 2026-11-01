@@ -10,7 +10,7 @@ const { sharedSourcePlugin, tsExtensionPlugin } = await import('@oss-idle/addon-
 const game = resolveGameRoot();
 const entry = join(root, 'src/.test-entry.ts');
 const out = join(root, '.test.mjs');
-writeFileSync(entry, `export * from './forecast.js';\nexport { warmupBar } from '@oss-idle/shared/fatigue';\n`);
+writeFileSync(entry, `export * from './forecast.js';\nexport * from './queue.js';\nexport { warmupBar } from '@oss-idle/shared/fatigue';\n`);
 await build({
 	entryPoints: [entry], outfile: out, bundle: true, format: 'esm', platform: 'node',
 	target: 'es2022', logLevel: 'error', absWorkingDir: root,
@@ -43,6 +43,16 @@ check('plays without strain rest', easy.loopDrift < 0 && easy.samples.at(-1).min
 
 const none = await m.forecast([], { ...base, play: async () => { throw new Error('no plays'); } });
 check('an empty queue plays nothing', none.plays === 0 && none.samples.length === 1);
+
+// the dock's fiber, as the game builds it: DockSource holds `useSynced`'s { current, previous }
+const beatmap = { metadata: { id: 7, total_length: 90000 }, lockedRate: 1.3, lockedMods: ['HR'] };
+const dock = { memoizedState: { memoizedState: { current: { label: 'Farm', entries: [{ beatmap, repeat: 2, played: 1 }] } }, next: null } };
+globalThis.document = { querySelector: () => ({ __reactFiber$x: { memoizedState: null, return: dock } }) };
+const read = m.readQueue();
+check('the queue is read from the dock', read?.label === 'Farm' && read.maps.length === 1, JSON.stringify(read));
+check('a queued map keeps its rate, mods, repeats and length', read?.maps[0].beatmapId === 7 && read.maps[0].rate === 1.3 && read.maps[0].mods[0] === 'HR' && read.maps[0].played === 1 && read.maps[0].lengthSec === 90, JSON.stringify(read));
+globalThis.document = { querySelector: () => null };
+check('no dock is no queue', m.readQueue() === undefined);
 
 console.log(`${pass} passed, ${fail} failed`);
 if (fail) process.exitCode = 1;
